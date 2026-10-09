@@ -31,7 +31,7 @@ export function AddMemberForm({ projectId }: { projectId: string }) {
           name="role"
           label="Rôle"
           options={roleOptions}
-          defaultValue="reviewer"
+          defaultValue={state.values?.role ?? "reviewer"}
           errors={state.fieldErrors?.role}
         />
         <Button type="submit" disabled={pending} className="sm:mt-6.5">

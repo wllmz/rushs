@@ -10,7 +10,8 @@ export type ProjectFormState = {
   error?: string;
   fieldErrors?: Partial<Record<string, string[]>>;
   success?: string;
-  values?: { name?: string; email?: string };
+  // React resets the form after an action: these refill it
+  values?: { name?: string; email?: string; role?: string };
 };
 
 function read(formData: FormData, key: string) {
@@ -22,7 +23,7 @@ export async function createProject(
   _state: ProjectFormState,
   formData: FormData,
 ): Promise<ProjectFormState> {
-  const values = { name: read(formData, "name") };
+  const values = { name: read(formData, "name"), role: read(formData, "role") };
   const parsed = createProjectSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { values, fieldErrors: z.flattenError(parsed.error).fieldErrors };
 
@@ -36,14 +37,15 @@ export async function createProject(
   redirect(`/projects/${projectId}`);
 }
 
-// Postgres error codes raised by add_project_member
+// Hints raised by add_project_member
 const ADD_MEMBER_ERRORS: Record<string, string> = {
-  P0002: "Aucun compte n'utilise cet e-mail. La personne doit d'abord s'inscrire.",
-  "42501": "Seul le créateur du projet peut ajouter des membres.",
+  no_account: "Aucun compte confirmé n'utilise cet e-mail. La personne doit d'abord s'inscrire.",
+  already_member: "Cette personne fait déjà partie du projet.",
+  not_creator: "Seul le créateur du projet peut ajouter des membres.",
 };
 
 export async function addMember(_state: ProjectFormState, formData: FormData): Promise<ProjectFormState> {
-  const values = { email: read(formData, "email") };
+  const values = { email: read(formData, "email"), role: read(formData, "role") };
   const parsed = addMemberSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { values, fieldErrors: z.flattenError(parsed.error).fieldErrors };
 
@@ -55,7 +57,7 @@ export async function addMember(_state: ProjectFormState, formData: FormData): P
     p_role: role,
   });
   if (error) {
-    return { values, error: ADD_MEMBER_ERRORS[error.code] ?? "Ajout impossible. Réessayez dans un instant." };
+    return { values, error: ADD_MEMBER_ERRORS[error.hint] ?? "Ajout impossible. Réessayez dans un instant." };
   }
 
   revalidatePath(`/projects/${projectId}`);

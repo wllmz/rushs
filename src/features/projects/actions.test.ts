@@ -65,20 +65,32 @@ describe("addMember", () => {
   });
 
   it("explains when no account uses the email", async () => {
-    rpc.mockResolvedValue({ data: null, error: { code: "P0002" } });
+    rpc.mockResolvedValue({ data: null, error: { hint: "no_account" } });
 
     const state = await addMember({}, form(valid));
 
-    expect(state.error).toBe("Aucun compte n'utilise cet e-mail. La personne doit d'abord s'inscrire.");
+    expect(state.error).toBe("Aucun compte confirmé n'utilise cet e-mail. La personne doit d'abord s'inscrire.");
     expect(state.values?.email).toBe("lea@studio.fr");
   });
 
   it("explains when the user is not the creator", async () => {
-    rpc.mockResolvedValue({ data: null, error: { code: "42501" } });
+    rpc.mockResolvedValue({ data: null, error: { hint: "not_creator" } });
 
     expect((await addMember({}, form(valid))).error).toBe(
       "Seul le créateur du projet peut ajouter des membres.",
     );
+  });
+
+  it("says so when the person is already a member", async () => {
+    rpc.mockResolvedValue({ data: null, error: { hint: "already_member" } });
+
+    expect((await addMember({}, form(valid))).error).toBe("Cette personne fait déjà partie du projet.");
+  });
+
+  it("keeps the chosen role after an error", async () => {
+    rpc.mockResolvedValue({ data: null, error: { hint: "no_account" } });
+
+    expect((await addMember({}, form({ ...valid, role: "editor" }))).values?.role).toBe("editor");
   });
 
   it("rejects a forged project id", async () => {

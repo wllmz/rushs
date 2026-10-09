@@ -24,7 +24,13 @@ export function CreateProjectForm() {
           errors={state.fieldErrors?.name}
         />
       </div>
-      <SelectField name="role" label="Mon rôle" options={roleOptions} errors={state.fieldErrors?.role} />
+      <SelectField
+        name="role"
+        label="Mon rôle"
+        options={roleOptions}
+        defaultValue={state.values?.role}
+        errors={state.fieldErrors?.role}
+      />
       <Button type="submit" disabled={pending} className="sm:mt-6.5">
         {pending ? "Création…" : "Créer le projet"}
       </Button>
