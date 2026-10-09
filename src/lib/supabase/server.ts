@@ -15,7 +15,7 @@ export async function createClient() {
         try {
           cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
         } catch {
-          // Server Components cannot write cookies: the session refresh is handled by the proxy
+          // Server Components cannot write cookies: the session refresh is handled by the proxy (issue #2)
         }
       },
     },
