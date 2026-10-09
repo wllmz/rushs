@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { signInErrorMessage, signUpErrorMessage } from "./messages";
 import { HOME_PATH, SIGN_IN_PATH } from "./routes";
 import { signInSchema, signUpSchema } from "./schemas";
 
@@ -31,15 +32,7 @@ export async function signIn(_state: AuthFormState, formData: FormData): Promise
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword(parsed.data);
-  if (error) {
-    return {
-      values,
-      error:
-        error.code === "email_not_confirmed"
-          ? "Confirmez d'abord votre adresse e-mail."
-          : "E-mail ou mot de passe incorrect.",
-    };
-  }
+  if (error) return { values, error: signInErrorMessage(error.code) };
 
   redirect(HOME_PATH);
 }
@@ -62,15 +55,7 @@ export async function signUp(_state: AuthFormState, formData: FormData): Promise
       emailRedirectTo: origin ? `${origin}/auth/callback` : undefined,
     },
   });
-  if (error) {
-    return {
-      values,
-      error:
-        error.code === "weak_password"
-          ? "Mot de passe trop faible."
-          : "Inscription impossible. Réessayez dans un instant.",
-    };
-  }
+  if (error) return { values, error: signUpErrorMessage(error.code) };
 
   // No session means Supabase waits for the email confirmation
   if (!data.session) return { emailSent: true };
@@ -80,6 +65,7 @@ export async function signUp(_state: AuthFormState, formData: FormData): Promise
 
 export async function signOut() {
   const supabase = await createClient();
-  await supabase.auth.signOut();
+  // Signs out this browser only, not the user's other devices
+  await supabase.auth.signOut({ scope: "local" });
   redirect(SIGN_IN_PATH);
 }

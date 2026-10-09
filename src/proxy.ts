@@ -8,6 +8,9 @@ import type { Database } from "@/lib/supabase/database.types";
 // This is UX only: data access is protected by RLS in the database.
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
+  // Anti-cache headers sent with the session cookies, so a CDN never serves one user's session to another.
+  // The library only sends them on the first cookie write, so they are kept for every response built here.
+  let sessionHeaders: Record<string, string> = {};
 
   const supabase = createServerClient<Database>(
     env.NEXT_PUBLIC_SUPABASE_URL,
@@ -17,10 +20,12 @@ export async function proxy(request: NextRequest) {
         getAll() {
           return request.cookies.getAll();
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet, headers) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
           response = NextResponse.next({ request });
           cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
+          sessionHeaders = { ...sessionHeaders, ...headers };
+          Object.entries(sessionHeaders).forEach(([key, value]) => response.headers.set(key, value));
         },
       },
     },
@@ -32,8 +37,9 @@ export async function proxy(request: NextRequest) {
 
   if (redirectTo) {
     const redirect = NextResponse.redirect(new URL(redirectTo, request.url));
-    // Keep the refreshed session cookies on the redirect
+    // Keep the refreshed session cookies and their anti-cache headers on the redirect
     response.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie));
+    Object.entries(sessionHeaders).forEach(([key, value]) => redirect.headers.set(key, value));
     return redirect;
   }
 
@@ -41,5 +47,7 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|webmanifest)$).*)",
+  ],
 };
