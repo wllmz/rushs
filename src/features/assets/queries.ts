@@ -8,7 +8,8 @@ export type AssetSummary = {
   id: string;
   title: string;
   kind: AssetKind;
-  createdBy: string;
+  // null once the uploader's account is deleted
+  createdBy: string | null;
   createdAt: string;
   latestVersion: { number: number; sizeBytes: number };
 };

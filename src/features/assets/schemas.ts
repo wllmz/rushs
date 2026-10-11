@@ -6,7 +6,8 @@ export const registerAssetSchema = z.object({
   projectId: z.uuid(),
   assetId: z.uuid(),
   title: assetTitleSchema,
-  storagePath: z.string().min(1),
+  // {project_id}/{asset_id}/{file_id}.{ext}: register_asset checks the ids, this bounds the input
+  storagePath: z.string().max(255).regex(/^[0-9a-f-]{36}\/[0-9a-f-]{36}\/[0-9a-f-]{36}\.[a-z0-9]+$/),
 });
 
 export type RegisterAssetInput = z.infer<typeof registerAssetSchema>;

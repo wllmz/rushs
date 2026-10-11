@@ -12,6 +12,7 @@ const REGISTER_ERRORS: Record<string, string> = {
   not_editor: "Seuls les monteurs peuvent déposer des rushs.",
   upload_missing: "Le fichier n'a pas été reçu. Relancez l'envoi.",
   invalid_type: "Format non pris en charge.",
+  invalid_path: "Données d'envoi invalides.",
 };
 
 // Called once the browser has uploaded the file to Storage: records it as an asset and its V1
@@ -55,8 +56,10 @@ export async function deleteAsset(input: { projectId: string; assetId: string })
 
   // The asset is gone for everyone already: a file left behind only costs storage, so it is logged, not shown
   if (paths.length > 0) {
-    const { error: storageError } = await supabase.storage.from("rushes").remove(paths);
+    const { data: removed, error: storageError } = await supabase.storage.from("rushes").remove(paths);
     if (storageError) console.error("Rush files left in storage", paths, storageError.message);
+    // RLS skips a file owned by someone else without an error
+    else if (removed.length < paths.length) console.error("Rush files left in storage", paths);
   }
 
   revalidatePath(`/projects/${projectId}`);

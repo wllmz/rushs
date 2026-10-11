@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useRef, useState, type FormEvent } from "react";
+import { useId, useRef, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { createClient } from "@/lib/supabase/client";
@@ -18,9 +18,11 @@ export function UploadAssetForm({ projectId }: { projectId: string }) {
   const formRef = useRef<HTMLFormElement>(null);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const [titleError, setTitleError] = useState<string>();
+  const fileInputId = useId();
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setStatus({ kind: "idle" });
     const formData = new FormData(event.currentTarget);
     const file = formData.get("file");
 
@@ -53,6 +55,9 @@ export function UploadAssetForm({ projectId }: { projectId: string }) {
 
     const result = await registerAsset({ projectId, assetId, title: title.data, storagePath });
     if (!result.ok) {
+      // No version points to the file yet, so the storage policy lets the uploader remove it;
+      // if this fails too, the file is only an unreferenced leftover
+      await supabase.storage.from("rushes").remove([storagePath]);
       setStatus({ kind: "error", message: result.error });
       return;
     }
@@ -74,11 +79,11 @@ export function UploadAssetForm({ projectId }: { projectId: string }) {
         errors={titleError ? [titleError] : undefined}
       />
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="file" className="text-sm font-medium">
+        <label htmlFor={fileInputId} className="text-sm font-medium">
           Fichier
         </label>
         <input
-          id="file"
+          id={fileInputId}
           name="file"
           type="file"
           accept={ACCEPT_ATTRIBUTE}

@@ -17,7 +17,7 @@ export type Database = {
       assets: {
         Row: {
           created_at: string
-          created_by: string
+          created_by: string | null
           id: string
           kind: Database["public"]["Enums"]["asset_kind"]
           project_id: string
@@ -25,7 +25,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          created_by: string
+          created_by?: string | null
           id?: string
           kind: Database["public"]["Enums"]["asset_kind"]
           project_id: string
@@ -33,7 +33,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          created_by?: string
+          created_by?: string | null
           id?: string
           kind?: Database["public"]["Enums"]["asset_kind"]
           project_id?: string
@@ -148,7 +148,7 @@ export type Database = {
           number: number
           size_bytes: number
           storage_path: string
-          uploaded_by: string
+          uploaded_by: string | null
         }
         Insert: {
           asset_id: string
@@ -158,7 +158,7 @@ export type Database = {
           number: number
           size_bytes: number
           storage_path: string
-          uploaded_by: string
+          uploaded_by?: string | null
         }
         Update: {
           asset_id?: string
@@ -168,7 +168,7 @@ export type Database = {
           number?: number
           size_bytes?: number
           storage_path?: string
-          uploaded_by?: string
+          uploaded_by?: string | null
         }
         Relationships: [
           {
