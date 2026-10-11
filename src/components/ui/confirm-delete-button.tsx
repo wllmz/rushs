@@ -1,20 +1,24 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Button } from "@/components/ui/button";
-import { deleteAsset } from "../actions";
+import { Button } from "./button";
 
-type DeleteAssetButtonProps = { projectId: string; assetId: string; title: string };
+type ConfirmDeleteButtonProps = {
+  // A Server Action bound to what it deletes
+  action: () => Promise<{ ok: true } | { ok: false; error: string }>;
+  // Read by screen readers, e.g. "Supprimer Interview"
+  label: string;
+};
 
 // Two steps instead of a browser confirm(): a first click arms, a second deletes
-export function DeleteAssetButton({ projectId, assetId, title }: DeleteAssetButtonProps) {
+export function ConfirmDeleteButton({ action, label }: ConfirmDeleteButtonProps) {
   const [armed, setArmed] = useState(false);
   const [error, setError] = useState<string>();
   const [pending, startTransition] = useTransition();
 
   function handleDelete() {
     startTransition(async () => {
-      const result = await deleteAsset({ projectId, assetId });
+      const result = await action();
       if (!result.ok) {
         setError(result.error);
         setArmed(false);
@@ -30,13 +34,7 @@ export function DeleteAssetButton({ projectId, assetId, title }: DeleteAssetButt
             {error}
           </span>
         )}
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={() => setArmed(true)}
-          aria-label={`Supprimer ${title}`}
-        >
+        <Button type="button" variant="ghost" size="sm" onClick={() => setArmed(true)} aria-label={label}>
           Supprimer
         </Button>
       </span>

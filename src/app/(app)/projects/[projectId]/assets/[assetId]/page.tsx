@@ -2,10 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { z } from "zod";
+import { ConfirmDeleteButton } from "@/components/ui/confirm-delete-button";
+import { deleteVersion } from "@/features/assets/actions";
 import { AddVersionForm } from "@/features/assets/components/add-version-form";
 import { formatFileSize } from "@/features/assets/file-rules";
 import { getAsset, getRushUrl } from "@/features/assets/queries";
 import { pickVersion } from "@/features/assets/versions";
+import { getCurrentUser } from "@/features/auth/queries";
 import { getProject } from "@/features/projects/queries";
 
 type AssetPageProps = PageProps<"/projects/[projectId]/assets/[assetId]">;
@@ -36,8 +39,14 @@ export default async function AssetPage({ params, searchParams }: AssetPageProps
   if (!version) notFound();
 
   // The asset is readable, so the project is too: only the role is missing
-  const [project, url] = await Promise.all([getProject(projectId), getRushUrl(version.storagePath)]);
+  const [project, url, user] = await Promise.all([
+    getProject(projectId),
+    getRushUrl(version.storagePath),
+    getCurrentUser(),
+  ]);
   if (!project) notFound();
+  // The database also refuses the last version: the button only avoids offering it
+  const canDeleteVersions = project.myRole === "editor" && asset.versions.length > 1;
 
   return (
     <div className="flex flex-col gap-8">
@@ -71,11 +80,14 @@ export default async function AssetPage({ params, searchParams }: AssetPageProps
           {asset.versions.map((item) => {
             const current = item.number === version.number;
             return (
-              <li key={item.number}>
+              <li
+                key={item.number}
+                className={`flex items-center gap-2 pr-3 ${current ? "bg-foreground/5" : ""}`}
+              >
                 <Link
                   href={`/projects/${projectId}/assets/${assetId}?v=${item.number}`}
                   aria-current={current ? "page" : undefined}
-                  className="flex flex-col gap-1 px-4 py-3 hover:bg-foreground/5 aria-[current=page]:bg-foreground/5 sm:flex-row sm:items-center sm:justify-between"
+                  className="flex min-w-0 flex-1 flex-col gap-1 px-4 py-3 hover:bg-foreground/5 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <span className="font-medium">V{item.number}</span>
                   <span className="flex flex-wrap gap-3 text-sm text-foreground/60">
@@ -84,6 +96,12 @@ export default async function AssetPage({ params, searchParams }: AssetPageProps
                     <span>{dateFormat.format(new Date(item.createdAt))}</span>
                   </span>
                 </Link>
+                {canDeleteVersions && item.uploadedBy === user.id && (
+                  <ConfirmDeleteButton
+                    action={deleteVersion.bind(null, { projectId, assetId, number: item.number })}
+                    label={`Supprimer la version ${item.number}`}
+                  />
+                )}
               </li>
             );
           })}

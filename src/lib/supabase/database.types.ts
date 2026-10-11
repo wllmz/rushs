@@ -212,6 +212,10 @@ export type Database = {
         Returns: string
       }
       delete_asset: { Args: { p_asset_id: string }; Returns: string[] }
+      delete_version: {
+        Args: { p_asset_id: string; p_number: number }
+        Returns: string
+      }
       register_asset: {
         Args: {
           p_asset_id: string

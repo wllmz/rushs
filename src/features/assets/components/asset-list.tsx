@@ -1,7 +1,8 @@
 import Link from "next/link";
+import { ConfirmDeleteButton } from "@/components/ui/confirm-delete-button";
+import { deleteAsset } from "../actions";
 import { formatFileSize } from "../file-rules";
 import type { AssetSummary } from "../queries";
-import { DeleteAssetButton } from "./delete-asset-button";
 
 const KIND_LABELS = { video: "Vidéo", image: "Image" } as const;
 const dateFormat = new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium" });
@@ -36,7 +37,10 @@ export function AssetList({ projectId, assets, currentUserId }: AssetListProps) 
             <span>{formatFileSize(asset.latestVersion.sizeBytes)}</span>
             <span>{dateFormat.format(new Date(asset.createdAt))}</span>
             {asset.createdBy === currentUserId && (
-              <DeleteAssetButton projectId={projectId} assetId={asset.id} title={asset.title} />
+              <ConfirmDeleteButton
+                action={deleteAsset.bind(null, { projectId, assetId: asset.id })}
+                label={`Supprimer ${asset.title}`}
+              />
             )}
           </span>
         </li>

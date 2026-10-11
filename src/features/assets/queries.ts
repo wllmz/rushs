@@ -48,6 +48,8 @@ export type AssetVersion = {
   mimeType: string;
   sizeBytes: number;
   createdAt: string;
+  // null once the uploader's account is deleted
+  uploadedBy: string | null;
   // null when the account is deleted or no longer shares a project with the viewer
   uploaderName: string | null;
 };
@@ -70,7 +72,7 @@ export const getAsset = cache(async (assetId: string): Promise<AssetDetail | nul
   const { data, error } = await supabase
     .from("assets")
     .select(
-      "id, project_id, title, kind, created_by, versions (number, storage_path, mime_type, size_bytes, created_at, profiles (full_name))",
+      "id, project_id, title, kind, created_by, versions (number, storage_path, mime_type, size_bytes, created_at, uploaded_by, profiles (full_name))",
     )
     .eq("id", assetId)
     .maybeSingle();
@@ -90,6 +92,7 @@ export const getAsset = cache(async (assetId: string): Promise<AssetDetail | nul
         mimeType: version.mime_type,
         sizeBytes: version.size_bytes,
         createdAt: version.created_at,
+        uploadedBy: version.uploaded_by,
         uploaderName: version.profiles?.full_name ?? null,
       }))
       .sort((a, b) => b.number - a.number),
