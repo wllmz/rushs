@@ -8,7 +8,7 @@ vi.mock("@/lib/supabase/server", () => ({
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
-const { deleteAsset, registerAsset } = await import("./actions");
+const { addVersion, deleteAsset, registerAsset } = await import("./actions");
 
 const input = {
   projectId: "6f9619ff-8b86-4d11-b42d-00c04fc964ff",
@@ -67,6 +67,43 @@ describe("registerAsset", () => {
     rpc.mockResolvedValue({ data: null, error: { hint: "" } });
 
     expect(await registerAsset(input)).toEqual({ ok: false, error: "Enregistrement impossible. Réessayez." });
+  });
+});
+
+describe("addVersion", () => {
+  const version = { projectId: input.projectId, assetId: input.assetId, storagePath: input.storagePath };
+
+  it("records the upload and returns the new version number", async () => {
+    rpc.mockResolvedValue({ data: 2, error: null });
+
+    expect(await addVersion(version)).toEqual({ ok: true, number: 2 });
+    expect(rpc).toHaveBeenCalledWith("add_version", {
+      p_asset_id: input.assetId,
+      p_storage_path: input.storagePath,
+    });
+  });
+
+  it("rejects a forged storage path without calling the database", async () => {
+    expect(await addVersion({ ...version, storagePath: "x" })).toEqual({
+      ok: false,
+      error: "Données d'envoi invalides.",
+    });
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("explains when the file is not the kind of the asset", async () => {
+    rpc.mockResolvedValue({ data: null, error: { hint: "kind_mismatch" } });
+
+    expect(await addVersion(version)).toEqual({
+      ok: false,
+      error: "Une nouvelle version doit garder le type du rush (vidéo ou image).",
+    });
+  });
+
+  it("explains when a reviewer tries to add a version", async () => {
+    rpc.mockResolvedValue({ data: null, error: { hint: "not_editor" } });
+
+    expect(await addVersion(version)).toEqual({ ok: false, error: "Seuls les monteurs peuvent ajouter une version." });
   });
 });
 

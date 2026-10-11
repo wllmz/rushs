@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { registerAssetSchema, type RegisterAssetInput } from "./schemas";
+import { addVersionSchema, registerAssetSchema, type AddVersionInput, type RegisterAssetInput } from "./schemas";
 
 export type RegisterAssetResult = { ok: true } | { ok: false; error: string };
 
@@ -36,7 +36,37 @@ export async function registerAsset(input: RegisterAssetInput): Promise<Register
   return { ok: true };
 }
 
-const deleteAssetSchema = z.object({ projectId: z.uuid(), assetId: z.uuid() });
+export type AddVersionResult = { ok: true; number: number } | { ok: false; error: string };
+
+// Hints raised by add_version
+const ADD_VERSION_ERRORS: Record<string, string> = {
+  not_editor: "Seuls les monteurs peuvent ajouter une version.",
+  upload_missing: "Le fichier n'a pas été reçu. Relancez l'envoi.",
+  invalid_path: "Données d'envoi invalides.",
+  kind_mismatch: "Une nouvelle version doit garder le type du rush (vidéo ou image).",
+};
+
+// Called once the browser has uploaded the file to Storage: records it as the next version
+export async function addVersion(input: AddVersionInput): Promise<AddVersionResult> {
+  const parsed = addVersionSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Données d'envoi invalides." };
+
+  const { projectId, assetId, storagePath } = parsed.data;
+  const supabase = await createClient();
+  const { data: number, error } = await supabase.rpc("add_version", {
+    p_asset_id: assetId,
+    p_storage_path: storagePath,
+  });
+  if (error) {
+    return { ok: false, error: ADD_VERSION_ERRORS[error.hint] ?? "Enregistrement impossible. Réessayez." };
+  }
+
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath(`/projects/${projectId}/assets/${assetId}`);
+  return { ok: true, number };
+}
+
+const deleteAssetSchema =z.object({ projectId: z.uuid(), assetId: z.uuid() });
 
 export type DeleteAssetResult = { ok: true } | { ok: false; error: string };
 

@@ -200,6 +200,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      add_version: {
+        Args: { p_asset_id: string; p_storage_path: string }
+        Returns: number
+      }
       create_project: {
         Args: {
           p_name: string

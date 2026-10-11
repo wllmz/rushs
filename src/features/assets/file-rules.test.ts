@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { buildStoragePath, formatFileSize, MAX_FILE_SIZE, validateRushFile } from "./file-rules";
+import { acceptAttribute, buildStoragePath, formatFileSize, MAX_FILE_SIZE, validateRushFile } from "./file-rules";
+
+describe("acceptAttribute", () => {
+  it("lists every accepted type, or only those of one kind", () => {
+    expect(acceptAttribute().split(",")).toHaveLength(6);
+    expect(acceptAttribute("image")).toBe("image/jpeg,image/png,image/webp");
+  });
+});
 
 describe("validateRushFile", () => {
   it("accepts a video or an image within the size limit", () => {
@@ -10,6 +17,11 @@ describe("validateRushFile", () => {
   it("rejects other types", () => {
     expect(validateRushFile({ type: "application/pdf", size: 1000 })).toMatch("Format non pris en charge");
     expect(validateRushFile({ type: "", size: 1000 })).toMatch("Format non pris en charge");
+  });
+
+  it("keeps a new version to the kind of its asset", () => {
+    expect(validateRushFile({ type: "video/webm", size: 1000 }, "video")).toBeNull();
+    expect(validateRushFile({ type: "image/png", size: 1000 }, "video")).toMatch("doit en être une aussi");
   });
 
   it("rejects an empty or oversized file", () => {
