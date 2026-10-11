@@ -1,6 +1,8 @@
+import Link from "next/link";
+import { ConfirmDeleteButton } from "@/components/ui/confirm-delete-button";
+import { deleteAsset } from "../actions";
 import { formatFileSize } from "../file-rules";
 import type { AssetSummary } from "../queries";
-import { DeleteAssetButton } from "./delete-asset-button";
 
 const KIND_LABELS = { video: "Vidéo", image: "Image" } as const;
 const dateFormat = new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium" });
@@ -23,14 +25,22 @@ export function AssetList({ projectId, assets, currentUserId }: AssetListProps) 
           key={asset.id}
           className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
         >
-          <span className="truncate font-medium">{asset.title}</span>
+          <Link
+            href={`/projects/${projectId}/assets/${asset.id}`}
+            className="truncate font-medium hover:underline"
+          >
+            {asset.title}
+          </Link>
           <span className="flex shrink-0 flex-wrap items-center gap-3 text-sm text-foreground/60">
             <span>{KIND_LABELS[asset.kind]}</span>
             <span>V{asset.latestVersion.number}</span>
             <span>{formatFileSize(asset.latestVersion.sizeBytes)}</span>
             <span>{dateFormat.format(new Date(asset.createdAt))}</span>
             {asset.createdBy === currentUserId && (
-              <DeleteAssetButton projectId={projectId} assetId={asset.id} title={asset.title} />
+              <ConfirmDeleteButton
+                action={deleteAsset.bind(null, { projectId, assetId: asset.id })}
+                label={`Supprimer ${asset.title}`}
+              />
             )}
           </span>
         </li>

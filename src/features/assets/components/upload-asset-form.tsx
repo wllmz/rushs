@@ -1,24 +1,22 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useId, useRef, useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
-import { createClient } from "@/lib/supabase/client";
 import { registerAsset } from "../actions";
-import { ACCEPT_ATTRIBUTE, buildStoragePath, validateRushFile } from "../file-rules";
+import { acceptAttribute, validateRushFile } from "../file-rules";
 import { assetTitleSchema } from "../schemas";
+import { uploadRush } from "../upload-rush";
+import { RushFileInput } from "./rush-file-input";
 
 type Status = { kind: "idle" } | { kind: "uploading" } | { kind: "error"; message: string } | { kind: "done" };
 
-// The file goes straight from the browser to Storage (a Server Action body is capped at 1 MB),
-// then the server records it from what Storage measured
 export function UploadAssetForm({ projectId }: { projectId: string }) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const [titleError, setTitleError] = useState<string>();
-  const fileInputId = useId();
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -41,22 +39,10 @@ export function UploadAssetForm({ projectId }: { projectId: string }) {
 
     setStatus({ kind: "uploading" });
     const assetId = crypto.randomUUID();
-    const storagePath = buildStoragePath(projectId, assetId, crypto.randomUUID(), file.type);
-
-    const supabase = createClient();
-    const { error: uploadError } = await supabase.storage
-      .from("rushes")
-      .upload(storagePath, file, { contentType: file.type, upsert: false });
-    if (uploadError) {
-      setStatus({ kind: "error", message: "L'envoi a échoué. Vérifiez votre connexion et réessayez." });
-      return;
-    }
-
-    const result = await registerAsset({ projectId, assetId, title: title.data, storagePath });
+    const result = await uploadRush(projectId, assetId, file, (storagePath) =>
+      registerAsset({ projectId, assetId, title: title.data, storagePath }),
+    );
     if (!result.ok) {
-      // No version points to the file yet, so the storage policy lets the uploader remove it;
-      // if this fails too, the file is only an unreferenced leftover
-      await supabase.storage.from("rushes").remove([storagePath]);
       setStatus({ kind: "error", message: result.error });
       return;
     }
@@ -77,20 +63,7 @@ export function UploadAssetForm({ projectId }: { projectId: string }) {
         required
         errors={titleError ? [titleError] : undefined}
       />
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor={fileInputId} className="text-sm font-medium">
-          Fichier
-        </label>
-        <input
-          id={fileInputId}
-          name="file"
-          type="file"
-          accept={ACCEPT_ATTRIBUTE}
-          required
-          className="text-sm file:mr-3 file:rounded-md file:border-0 file:bg-foreground/10 file:px-3 file:py-2 file:text-sm file:font-medium"
-        />
-        <p className="text-xs text-foreground/60">Vidéo ou image, 50 Mo maximum.</p>
-      </div>
+      <RushFileInput accept={acceptAttribute()} hint="Vidéo ou image, 50 Mo maximum." />
       <div className="flex flex-wrap items-center gap-3">
         <Button type="submit" disabled={uploading}>
           {uploading ? "Envoi en cours…" : "Déposer le rush"}

@@ -20,6 +20,7 @@ export type Database = {
           created_by: string | null
           id: string
           kind: Database["public"]["Enums"]["asset_kind"]
+          last_version_number: number
           project_id: string
           title: string
         }
@@ -28,6 +29,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           kind: Database["public"]["Enums"]["asset_kind"]
+          last_version_number?: number
           project_id: string
           title: string
         }
@@ -36,6 +38,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           kind?: Database["public"]["Enums"]["asset_kind"]
+          last_version_number?: number
           project_id?: string
           title?: string
         }
@@ -200,6 +203,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      add_version: {
+        Args: { p_asset_id: string; p_storage_path: string }
+        Returns: number
+      }
       create_project: {
         Args: {
           p_name: string
@@ -208,6 +215,10 @@ export type Database = {
         Returns: string
       }
       delete_asset: { Args: { p_asset_id: string }; Returns: string[] }
+      delete_version: {
+        Args: { p_asset_id: string; p_number: number }
+        Returns: string
+      }
       register_asset: {
         Args: {
           p_asset_id: string
