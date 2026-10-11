@@ -81,9 +81,9 @@ export default async function AssetPage({ params, searchParams }: AssetPageProps
         )}
       </div>
 
-      <section aria-labelledby="review" className="flex flex-col gap-3">
-        <h2 id="review" className="font-medium">
-          Review de la V{version.number}
+      <section aria-labelledby="review-heading" className="flex flex-col gap-3">
+        <h2 id="review-heading" className="font-medium">
+          Validation de la V{version.number}
         </h2>
         {version.reviewedAt && (
           <p className="text-sm text-foreground/60">
@@ -92,6 +92,8 @@ export default async function AssetPage({ params, searchParams }: AssetPageProps
         )}
         {project.myRole === "reviewer" ? (
           <ReviewStatusButtons
+            // key: a confirmation shown for one version must not stay on the next one
+            key={version.number}
             projectId={projectId}
             assetId={assetId}
             number={version.number}
@@ -102,8 +104,8 @@ export default async function AssetPage({ params, searchParams }: AssetPageProps
         )}
       </section>
 
-      <section aria-labelledby="versions" className="flex flex-col gap-4">
-        <h2 id="versions" className="font-medium">
+      <section aria-labelledby="versions-heading" className="flex flex-col gap-4">
+        <h2 id="versions-heading" className="font-medium">
           Versions
         </h2>
         <ul className="divide-y divide-foreground/10 rounded-lg border border-foreground/10">
@@ -129,7 +131,7 @@ export default async function AssetPage({ params, searchParams }: AssetPageProps
                     <span>{dateFormat.format(new Date(item.createdAt))}</span>
                   </span>
                 </Link>
-                {canDeleteVersions && item.uploadedBy === user.id && item.status === "pending" && (
+                {canDeleteVersions && item.uploadedBy === user.id && item.reviewedAt === null && (
                   <ConfirmDeleteButton
                     action={deleteVersion.bind(null, { projectId, assetId, number: item.number })}
                     label={`Supprimer la version ${item.number}`}

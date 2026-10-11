@@ -13,7 +13,7 @@ export type AssetSummary = {
   createdBy: string | null;
   createdAt: string;
   latestVersion: { number: number; sizeBytes: number; status: ReviewStatus };
-  // A reviewed asset is part of the review history: it can no longer be deleted
+  // Reviewed once, even if set back to pending: part of the review history, it can no longer be deleted
   isReviewed: boolean;
 };
 
@@ -23,7 +23,7 @@ export async function listAssets(projectId: string): Promise<AssetSummary[]> {
 
   const { data, error } = await supabase
     .from("assets")
-    .select("id, title, kind, created_by, created_at, versions (number, size_bytes, status)")
+    .select("id, title, kind, created_by, created_at, versions (number, size_bytes, status, reviewed_at)")
     .eq("project_id", projectId)
     .order("created_at", { ascending: false });
   if (error) throw new Error(`Could not list assets: ${error.message}`);
@@ -40,7 +40,7 @@ export async function listAssets(projectId: string): Promise<AssetSummary[]> {
         createdBy: asset.created_by,
         createdAt: asset.created_at,
         latestVersion: { number: latest.number, sizeBytes: latest.size_bytes, status: latest.status },
-        isReviewed: asset.versions.some((version) => version.status !== "pending"),
+        isReviewed: asset.versions.some((version) => version.reviewed_at !== null),
       },
     ];
   });

@@ -16,13 +16,15 @@ const props = {
 beforeEach(() => vi.clearAllMocks());
 
 describe("ReviewStatusButtons", () => {
-  it("marks the current status as pressed and not clickable", () => {
+  it("marks the current status as pressed, and ignores a click on it", () => {
     render(<ReviewStatusButtons {...props} />);
 
     const current = screen.getByRole("button", { name: "En attente" });
     expect(current).toHaveAttribute("aria-pressed", "true");
-    expect(current).toBeDisabled();
     expect(screen.getByRole("button", { name: "Validé" })).toHaveAttribute("aria-pressed", "false");
+
+    fireEvent.click(current);
+    expect(setVersionStatus).not.toHaveBeenCalled();
   });
 
   it("sends the chosen status for this version", async () => {
@@ -39,6 +41,7 @@ describe("ReviewStatusButtons", () => {
         status: "approved",
       }),
     );
+    expect(await screen.findByText("Statut mis à jour.")).toBeInTheDocument();
   });
 
   it("shows why the change was refused", async () => {
