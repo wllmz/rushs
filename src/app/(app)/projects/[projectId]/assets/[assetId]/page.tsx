@@ -5,7 +5,7 @@ import { z } from "zod";
 import { ConfirmDeleteButton } from "@/components/ui/confirm-delete-button";
 import { deleteVersion } from "@/features/assets/actions";
 import { AddVersionForm } from "@/features/assets/components/add-version-form";
-import { PlayerProvider, RushVideo } from "@/features/assets/components/player";
+import { PlayerProvider, RushImage, RushVideo } from "@/features/assets/components/player";
 import { ReviewStatusButtons } from "@/features/assets/components/review-status-buttons";
 import { StatusBadge } from "@/features/assets/components/status-badge";
 import { formatFileSize } from "@/features/assets/file-rules";
@@ -16,6 +16,7 @@ import { CommentForm } from "@/features/comments/components/comment-form";
 import { CommentList } from "@/features/comments/components/comment-list";
 import { listComments } from "@/features/comments/queries";
 import { getProject } from "@/features/projects/queries";
+import { LiveAssetUpdates } from "@/features/realtime/components/live-asset-updates";
 import { formatDate } from "@/lib/format-date";
 
 type AssetPageProps = PageProps<"/projects/[projectId]/assets/[assetId]">;
@@ -58,6 +59,7 @@ export default async function AssetPage({ params, searchParams }: AssetPageProps
   return (
     // The comments read and move the time of the video
     <PlayerProvider>
+      <LiveAssetUpdates assetId={assetId} versionId={version.id} />
       <div className="flex flex-col gap-8">
         <div className="flex flex-col gap-2">
           <Link href={`/projects/${projectId}`} className="text-sm text-foreground/60 hover:text-foreground">
@@ -83,8 +85,12 @@ export default async function AssetPage({ params, searchParams }: AssetPageProps
               className="max-h-[70vh] w-full"
             />
           ) : (
-            // eslint-disable-next-line @next/next/no-img-element -- a signed url expires: nothing to optimize or cache
-            <img src={url} alt={`${asset.title}, version ${version.number}`} className="max-h-[70vh] w-full object-contain" />
+            <RushImage
+              key={version.number}
+              src={url}
+              alt={`${asset.title}, version ${version.number}`}
+              className="max-h-[70vh] w-full object-contain"
+            />
           )}
         </div>
 

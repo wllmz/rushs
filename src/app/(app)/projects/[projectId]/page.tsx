@@ -9,6 +9,7 @@ import { getCurrentUser } from "@/features/auth/queries";
 import { AddMemberForm } from "@/features/projects/components/add-member-form";
 import { RoleBadge } from "@/features/projects/components/role-badge";
 import { getProject } from "@/features/projects/queries";
+import { LiveProjectUpdates } from "@/features/realtime/components/live-project-updates";
 
 async function loadProject(projectId: string) {
   // A malformed id would make Postgres throw: treat it as a missing project
@@ -29,6 +30,7 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[proj
 
   return (
     <div className="flex flex-col gap-8">
+      <LiveProjectUpdates projectId={project.id} />
       <div className="flex flex-col gap-2">
         <Link href="/projects" className="text-sm text-foreground/60 hover:text-foreground">
           ← Projets
