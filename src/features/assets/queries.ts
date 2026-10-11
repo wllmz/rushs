@@ -13,8 +13,8 @@ export type AssetSummary = {
   createdBy: string | null;
   createdAt: string;
   latestVersion: { number: number; sizeBytes: number; status: ReviewStatus };
-  // Reviewed once, even if set back to pending: part of the review history, it can no longer be deleted
-  isReviewed: boolean;
+  // A version reviewed once (even if set back to pending) or commented: the asset can no longer be deleted
+  hasReviewHistory: boolean;
 };
 
 // RLS returns nothing for a project the user is not a member of
@@ -23,7 +23,7 @@ export async function listAssets(projectId: string): Promise<AssetSummary[]> {
 
   const { data, error } = await supabase
     .from("assets")
-    .select("id, title, kind, created_by, created_at, versions (number, size_bytes, status, reviewed_at)")
+    .select("id, title, kind, created_by, created_at, versions (number, size_bytes, status, reviewed_at, comments (count))")
     .eq("project_id", projectId)
     .order("created_at", { ascending: false });
   if (error) throw new Error(`Could not list assets: ${error.message}`);
@@ -40,13 +40,16 @@ export async function listAssets(projectId: string): Promise<AssetSummary[]> {
         createdBy: asset.created_by,
         createdAt: asset.created_at,
         latestVersion: { number: latest.number, sizeBytes: latest.size_bytes, status: latest.status },
-        isReviewed: asset.versions.some((version) => version.reviewed_at !== null),
+        hasReviewHistory: asset.versions.some(
+          (version) => version.reviewed_at !== null || (version.comments[0]?.count ?? 0) > 0,
+        ),
       },
     ];
   });
 }
 
 export type AssetVersion = {
+  id: string;
   number: number;
   storagePath: string;
   mimeType: string;
@@ -60,6 +63,7 @@ export type AssetVersion = {
   // Who set the status and when; null while nobody has reviewed the version
   reviewerName: string | null;
   reviewedAt: string | null;
+  commentCount: number;
 };
 
 export type AssetDetail = {
@@ -80,7 +84,7 @@ export const getAsset = cache(async (assetId: string): Promise<AssetDetail | nul
   const { data, error } = await supabase
     .from("assets")
     .select(
-      "id, project_id, title, kind, created_by, versions (number, storage_path, mime_type, size_bytes, created_at, uploaded_by, status, reviewed_at, uploader:profiles!versions_uploaded_by_fkey (full_name), reviewer:profiles!versions_reviewed_by_fkey (full_name))",
+      "id, project_id, title, kind, created_by, versions (id, number, storage_path, mime_type, size_bytes, created_at, uploaded_by, status, reviewed_at, uploader:profiles!versions_uploaded_by_fkey (full_name), reviewer:profiles!versions_reviewed_by_fkey (full_name), comments (count))",
     )
     .eq("id", assetId)
     .maybeSingle();
@@ -95,6 +99,7 @@ export const getAsset = cache(async (assetId: string): Promise<AssetDetail | nul
     createdBy: data.created_by,
     versions: data.versions
       .map((version) => ({
+        id: version.id,
         number: version.number,
         storagePath: version.storage_path,
         mimeType: version.mime_type,
@@ -105,6 +110,7 @@ export const getAsset = cache(async (assetId: string): Promise<AssetDetail | nul
         status: version.status,
         reviewerName: version.reviewer?.full_name ?? null,
         reviewedAt: version.reviewed_at,
+        commentCount: version.comments[0]?.count ?? 0,
       }))
       .sort((a, b) => b.number - a.number),
   };

@@ -144,7 +144,7 @@ describe("deleteAsset", () => {
   it("keeps an asset that has a reviewed version", async () => {
     rpc.mockResolvedValue({ data: null, error: { hint: "reviewed" } });
 
-    expect(await deleteAsset(ids)).toEqual({ ok: false, error: "Ce rush a déjà été revu : il est conservé." });
+    expect(await deleteAsset(ids)).toEqual({ ok: false, error: "Ce rush a déjà été revu ou commenté : il est conservé." });
     expect(remove).not.toHaveBeenCalled();
   });
 
@@ -199,7 +199,7 @@ describe("deleteVersion", () => {
 
     expect(await deleteVersion(target)).toEqual({
       ok: false,
-      error: "Cette version a déjà été revue : elle est conservée.",
+      error: "Cette version a déjà été revue ou commentée : elle est conservée.",
     });
     expect(remove).not.toHaveBeenCalled();
   });

@@ -5,13 +5,18 @@ import { z } from "zod";
 import { ConfirmDeleteButton } from "@/components/ui/confirm-delete-button";
 import { deleteVersion } from "@/features/assets/actions";
 import { AddVersionForm } from "@/features/assets/components/add-version-form";
+import { PlayerProvider, RushVideo } from "@/features/assets/components/player";
 import { ReviewStatusButtons } from "@/features/assets/components/review-status-buttons";
 import { StatusBadge } from "@/features/assets/components/status-badge";
 import { formatFileSize } from "@/features/assets/file-rules";
 import { getAsset, getRushUrl } from "@/features/assets/queries";
 import { pickVersion } from "@/features/assets/versions";
 import { getCurrentUser } from "@/features/auth/queries";
+import { CommentForm } from "@/features/comments/components/comment-form";
+import { CommentList } from "@/features/comments/components/comment-list";
+import { listComments } from "@/features/comments/queries";
 import { getProject } from "@/features/projects/queries";
+import { formatDate } from "@/lib/format-date";
 
 type AssetPageProps = PageProps<"/projects/[projectId]/assets/[assetId]">;
 
@@ -31,7 +36,6 @@ export async function generateMetadata({ params }: AssetPageProps): Promise<Meta
 }
 
 const KIND_LABELS = { video: "Vidéo", image: "Image" } as const;
-const dateFormat = new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium" });
 
 export default async function AssetPage({ params, searchParams }: AssetPageProps) {
   const { projectId, assetId } = await params;
@@ -41,113 +45,132 @@ export default async function AssetPage({ params, searchParams }: AssetPageProps
   if (!version) notFound();
 
   // The asset is readable, so the project is too: only the role is missing
-  const [project, url, user] = await Promise.all([
+  const [project, url, user, comments] = await Promise.all([
     getProject(projectId),
     getRushUrl(version.storagePath),
     getCurrentUser(),
+    listComments(version.id),
   ]);
   if (!project) notFound();
-  // The database also refuses the last version and reviewed ones: the button only avoids offering them
+  // The database also refuses the last version and reviewed or commented ones: the button only avoids offering them
   const canDeleteVersions = project.myRole === "editor" && asset.versions.length > 1;
 
   return (
-    <div className="flex flex-col gap-8">
-      <div className="flex flex-col gap-2">
-        <Link href={`/projects/${projectId}`} className="text-sm text-foreground/60 hover:text-foreground">
-          ← {project.name}
-        </Link>
-        <div className="flex flex-wrap items-baseline gap-3">
-          <h1 className="min-w-0 truncate text-2xl font-semibold tracking-tight">{asset.title}</h1>
-          <span className="text-sm text-foreground/60">
-            {KIND_LABELS[asset.kind]} · V{version.number}
-          </span>
-          <StatusBadge status={version.status} />
+    // The comments read and move the time of the video
+    <PlayerProvider>
+      <div className="flex flex-col gap-8">
+        <div className="flex flex-col gap-2">
+          <Link href={`/projects/${projectId}`} className="text-sm text-foreground/60 hover:text-foreground">
+            ← {project.name}
+          </Link>
+          <div className="flex flex-wrap items-baseline gap-3">
+            <h1 className="min-w-0 truncate text-2xl font-semibold tracking-tight">{asset.title}</h1>
+            <span className="text-sm text-foreground/60">
+              {KIND_LABELS[asset.kind]} · V{version.number}
+            </span>
+            <StatusBadge status={version.status} />
+          </div>
         </div>
-      </div>
 
-      <div className="overflow-hidden rounded-lg border border-foreground/10 bg-foreground/5">
-        {asset.kind === "video" ? (
-          // key: switching versions loads the new source instead of keeping the old one
-          <video
-            key={version.number}
-            src={url}
-            controls
-            aria-label={`${asset.title}, version ${version.number}`}
-            className="max-h-[70vh] w-full"
-          />
-        ) : (
-          // eslint-disable-next-line @next/next/no-img-element -- a signed url expires: nothing to optimize or cache
-          <img src={url} alt={`${asset.title}, version ${version.number}`} className="max-h-[70vh] w-full object-contain" />
-        )}
-      </div>
+        <div className="overflow-hidden rounded-lg border border-foreground/10 bg-foreground/5">
+          {asset.kind === "video" ? (
+            // key: switching versions loads the new source instead of keeping the old one
+            <RushVideo
+              key={version.number}
+              src={url}
+              controls
+              aria-label={`${asset.title}, version ${version.number}`}
+              className="max-h-[70vh] w-full"
+            />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element -- a signed url expires: nothing to optimize or cache
+            <img src={url} alt={`${asset.title}, version ${version.number}`} className="max-h-[70vh] w-full object-contain" />
+          )}
+        </div>
 
-      <section aria-labelledby="review-heading" className="flex flex-col gap-3">
-        <h2 id="review-heading" className="font-medium">
-          Validation de la V{version.number}
-        </h2>
-        {version.reviewedAt && (
-          <p className="text-sm text-foreground/60">
-            {`Statut posé par ${version.reviewerName ?? "un compte inconnu"} le ${dateFormat.format(new Date(version.reviewedAt))}.`}
-          </p>
-        )}
-        {project.myRole === "reviewer" ? (
-          <ReviewStatusButtons
-            // key: a confirmation shown for one version must not stay on the next one
+        <section aria-labelledby="review-heading" className="flex flex-col gap-3">
+          <h2 id="review-heading" className="font-medium">
+            Validation de la V{version.number}
+          </h2>
+          {version.reviewedAt && (
+            <p className="text-sm text-foreground/60">
+              {`Statut posé par ${version.reviewerName ?? "un compte inconnu"} le ${formatDate(version.reviewedAt)}.`}
+            </p>
+          )}
+          {project.myRole === "reviewer" ? (
+            <ReviewStatusButtons
+              // key: a confirmation shown for one version must not stay on the next one
+              key={version.number}
+              projectId={projectId}
+              assetId={assetId}
+              number={version.number}
+              status={version.status}
+            />
+          ) : (
+            !version.reviewedAt && <p className="text-sm text-foreground/60">En attente d&apos;un validateur.</p>
+          )}
+        </section>
+
+        <section aria-labelledby="comments-heading" className="flex flex-col gap-4">
+          <h2 id="comments-heading" className="font-medium">
+            Commentaires sur la V{version.number}
+          </h2>
+          <CommentList comments={comments} />
+          <CommentForm
+            // key: a draft or an error written for one version must not stay on the next one
             key={version.number}
             projectId={projectId}
             assetId={assetId}
-            number={version.number}
-            status={version.status}
+            versionId={version.id}
+            isVideo={asset.kind === "video"}
           />
-        ) : (
-          !version.reviewedAt && <p className="text-sm text-foreground/60">En attente d&apos;un validateur.</p>
-        )}
-      </section>
+        </section>
 
-      <section aria-labelledby="versions-heading" className="flex flex-col gap-4">
-        <h2 id="versions-heading" className="font-medium">
-          Versions
-        </h2>
-        <ul className="divide-y divide-foreground/10 rounded-lg border border-foreground/10">
-          {asset.versions.map((item) => {
-            const current = item.number === version.number;
-            return (
-              <li
-                key={item.number}
-                className={`flex items-center gap-2 pr-3 ${current ? "bg-foreground/5" : ""}`}
-              >
-                <Link
-                  href={`/projects/${projectId}/assets/${assetId}?v=${item.number}`}
-                  aria-current={current ? "true" : undefined}
-                  className="flex min-w-0 flex-1 flex-col gap-1 px-4 py-3 hover:bg-foreground/5 sm:flex-row sm:items-center sm:justify-between"
+        <section aria-labelledby="versions-heading" className="flex flex-col gap-4">
+          <h2 id="versions-heading" className="font-medium">
+            Versions
+          </h2>
+          <ul className="divide-y divide-foreground/10 rounded-lg border border-foreground/10">
+            {asset.versions.map((item) => {
+              const current = item.number === version.number;
+              return (
+                <li
+                  key={item.number}
+                  className={`flex items-center gap-2 pr-3 ${current ? "bg-foreground/5" : ""}`}
                 >
-                  <span className="flex items-center gap-2">
-                    <span className="font-medium">V{item.number}</span>
-                    <StatusBadge status={item.status} />
-                  </span>
-                  <span className="flex flex-wrap gap-3 text-sm text-foreground/60">
-                    <span>{item.uploaderName ?? "Auteur inconnu"}</span>
-                    <span>{formatFileSize(item.sizeBytes)}</span>
-                    <span>{dateFormat.format(new Date(item.createdAt))}</span>
-                  </span>
-                </Link>
-                {canDeleteVersions && item.uploadedBy === user.id && item.reviewedAt === null && (
-                  <ConfirmDeleteButton
-                    action={deleteVersion.bind(null, { projectId, assetId, number: item.number })}
-                    label={`Supprimer la version ${item.number}`}
-                  />
-                )}
-              </li>
-            );
-          })}
-        </ul>
-        {project.myRole === "editor" && (
-          <div className="rounded-lg border border-foreground/10 p-4">
-            <h3 className="mb-3 text-sm font-medium">Nouvelle version</h3>
-            <AddVersionForm projectId={projectId} assetId={assetId} assetKind={asset.kind} />
-          </div>
-        )}
-      </section>
-    </div>
+                  <Link
+                    href={`/projects/${projectId}/assets/${assetId}?v=${item.number}`}
+                    aria-current={current ? "true" : undefined}
+                    className="flex min-w-0 flex-1 flex-col gap-1 px-4 py-3 hover:bg-foreground/5 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <span className="flex items-center gap-2">
+                      <span className="font-medium">V{item.number}</span>
+                      <StatusBadge status={item.status} />
+                    </span>
+                    <span className="flex flex-wrap gap-3 text-sm text-foreground/60">
+                      <span>{item.uploaderName ?? "Auteur inconnu"}</span>
+                      <span>{formatFileSize(item.sizeBytes)}</span>
+                      <span>{formatDate(item.createdAt)}</span>
+                    </span>
+                  </Link>
+                  {canDeleteVersions && item.uploadedBy === user.id && item.reviewedAt === null && item.commentCount === 0 && (
+                    <ConfirmDeleteButton
+                      action={deleteVersion.bind(null, { projectId, assetId, number: item.number })}
+                      label={`Supprimer la version ${item.number}`}
+                    />
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+          {project.myRole === "editor" && (
+            <div className="rounded-lg border border-foreground/10 p-4">
+              <h3 className="mb-3 text-sm font-medium">Nouvelle version</h3>
+              <AddVersionForm projectId={projectId} assetId={assetId} assetKind={asset.kind} />
+            </div>
+          )}
+        </section>
+      </div>
+    </PlayerProvider>
   );
 }
