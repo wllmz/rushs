@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { createClient } from "@/lib/supabase/client";
 import { registerAsset } from "../actions";
-import { ACCEPT_ATTRIBUTE, buildStoragePath, resolveRushType, validateRushFile } from "../file-rules";
+import { ACCEPT_ATTRIBUTE, buildStoragePath, validateRushFile } from "../file-rules";
 import { assetTitleSchema } from "../schemas";
 
 type Status = { kind: "idle" } | { kind: "uploading" } | { kind: "error"; message: string } | { kind: "done" };
@@ -32,8 +32,7 @@ export function UploadAssetForm({ projectId }: { projectId: string }) {
       setStatus({ kind: "error", message: "Choisissez un fichier." });
       return;
     }
-    const type = resolveRushType(file);
-    const fileError = validateRushFile({ size: file.size, type });
+    const fileError = validateRushFile(file);
     if (fileError) {
       setStatus({ kind: "error", message: fileError });
       return;
@@ -42,12 +41,12 @@ export function UploadAssetForm({ projectId }: { projectId: string }) {
 
     setStatus({ kind: "uploading" });
     const assetId = crypto.randomUUID();
-    const storagePath = buildStoragePath(projectId, assetId, crypto.randomUUID(), type);
+    const storagePath = buildStoragePath(projectId, assetId, crypto.randomUUID(), file.type);
 
     const supabase = createClient();
     const { error: uploadError } = await supabase.storage
       .from("rushes")
-      .upload(storagePath, file, { contentType: type, upsert: false });
+      .upload(storagePath, file, { contentType: file.type, upsert: false });
     if (uploadError) {
       setStatus({ kind: "error", message: "L'envoi a échoué. Vérifiez votre connexion et réessayez." });
       return;
