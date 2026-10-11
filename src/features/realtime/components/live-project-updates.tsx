@@ -11,7 +11,16 @@ export function LiveProjectUpdates({ projectId }: { projectId: string }) {
   const router = useRouter();
 
   useEffect(
-    () => subscribeRefresh(createClient(), `project:${projectId}`, [{ table: "versions" }], () => router.refresh()),
+    () =>
+      subscribeRefresh(
+        createClient(),
+        `project:${projectId}`,
+        [
+          { table: "versions", event: "INSERT" },
+          { table: "versions", event: "UPDATE" },
+        ],
+        () => router.refresh(),
+      ),
     [projectId, router],
   );
 

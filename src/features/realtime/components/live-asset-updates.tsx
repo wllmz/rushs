@@ -15,8 +15,10 @@ export function LiveAssetUpdates({ assetId, versionId }: { assetId: string; vers
         createClient(),
         `asset:${assetId}:${versionId}`,
         [
-          { table: "comments", filter: `version_id=eq.${versionId}` },
-          { table: "versions", filter: `asset_id=eq.${assetId}` },
+          // Comments are never edited nor deleted
+          { table: "comments", event: "INSERT", filter: `version_id=eq.${versionId}` },
+          { table: "versions", event: "INSERT", filter: `asset_id=eq.${assetId}` },
+          { table: "versions", event: "UPDATE", filter: `asset_id=eq.${assetId}` },
         ],
         () => router.refresh(),
       ),

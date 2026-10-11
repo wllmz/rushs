@@ -1,7 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 
-type Binding = { table: "comments" | "versions"; filter?: string };
+// Only inserts and updates: Realtime cannot check RLS on a deleted row and broadcasts DELETE events
+// to every subscriber of the table, whatever their projects. A deletion shows up on the next refresh.
+type Binding = { table: "comments" | "versions"; event: "INSERT" | "UPDATE"; filter?: string };
 
 const DEBOUNCE_MS = 300;
 
@@ -27,11 +29,22 @@ export function subscribeRefresh(
   // the anonymous key, and RLS would silently filter every event out. setAuth() waits for the user's token.
   void supabase.realtime.setAuth().then(() => {
     if (cancelled) return;
-    channel = supabase.channel(name);
-    for (const { table, filter } of bindings) {
-      channel.on("postgres_changes", { event: "*", schema: "public", table, filter }, schedule);
+    // The browser client is a singleton that hands back a channel of the same topic while it is still
+    // leaving: a unique topic per subscription keeps a quick come-back from landing on a closing channel
+    channel = supabase.channel(`${name}:${crypto.randomUUID()}`);
+    for (const { table, event, filter } of bindings) {
+      channel.on("postgres_changes", { event, schema: "public", table, filter }, schedule);
     }
-    channel.subscribe();
+    let joined = false;
+    channel.subscribe((status) => {
+      if (status === "SUBSCRIBED") {
+        // A rejoin after a network loss: events sent meanwhile are gone, catch up with a refresh
+        if (joined) schedule();
+        joined = true;
+      } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+        console.error(`Live updates unavailable on ${name}: ${status}`);
+      }
+    });
   });
 
   return () => {
