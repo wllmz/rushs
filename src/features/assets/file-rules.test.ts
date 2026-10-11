@@ -1,5 +1,34 @@
 import { describe, expect, it } from "vitest";
-import { buildStoragePath, formatFileSize, MAX_FILE_SIZE, validateRushFile } from "./file-rules";
+import {
+  ACCEPT_ATTRIBUTE,
+  buildStoragePath,
+  formatFileSize,
+  MAX_FILE_SIZE,
+  resolveRushType,
+  validateRushFile,
+} from "./file-rules";
+
+describe("ACCEPT_ATTRIBUTE", () => {
+  it("lists extensions as well as types, so the file picker never hides a rush", () => {
+    expect(ACCEPT_ATTRIBUTE.split(",")).toEqual(expect.arrayContaining(["video/mp4", ".mp4", ".mov", ".jpeg"]));
+  });
+});
+
+describe("resolveRushType", () => {
+  it("keeps an accepted type given by the browser", () => {
+    expect(resolveRushType({ name: "clip.bin", type: "video/webm" })).toBe("video/webm");
+  });
+
+  it("falls back on the extension when the browser gave no accepted type", () => {
+    expect(resolveRushType({ name: "Interview.MP4", type: "" })).toBe("video/mp4");
+    expect(resolveRushType({ name: "plan.mov", type: "application/octet-stream" })).toBe("video/quicktime");
+  });
+
+  it("leaves an unknown file unaccepted", () => {
+    expect(resolveRushType({ name: "notes.pdf", type: "application/pdf" })).toBe("application/pdf");
+    expect(resolveRushType({ name: "constructor", type: "" })).toBe("");
+  });
+});
 
 describe("validateRushFile", () => {
   it("accepts a video or an image within the size limit", () => {
