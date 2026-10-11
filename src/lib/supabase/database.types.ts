@@ -20,6 +20,7 @@ export type Database = {
           created_by: string | null
           id: string
           kind: Database["public"]["Enums"]["asset_kind"]
+          last_version_number: number
           project_id: string
           title: string
         }
@@ -28,6 +29,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           kind: Database["public"]["Enums"]["asset_kind"]
+          last_version_number?: number
           project_id: string
           title: string
         }
@@ -36,6 +38,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           kind?: Database["public"]["Enums"]["asset_kind"]
+          last_version_number?: number
           project_id?: string
           title?: string
         }

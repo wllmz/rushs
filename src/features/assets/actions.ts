@@ -66,7 +66,7 @@ export async function addVersion(input: AddVersionInput): Promise<AddVersionResu
   return { ok: true, number };
 }
 
-const deleteAssetSchema =z.object({ projectId: z.uuid(), assetId: z.uuid() });
+const deleteAssetSchema = z.object({ projectId: z.uuid(), assetId: z.uuid() });
 
 export type DeleteAssetResult = { ok: true } | { ok: false; error: string };
 

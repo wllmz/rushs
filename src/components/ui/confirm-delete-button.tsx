@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { Button } from "./button";
 
 type ConfirmDeleteButtonProps = {
@@ -15,10 +15,16 @@ export function ConfirmDeleteButton({ action, label }: ConfirmDeleteButtonProps)
   const [armed, setArmed] = useState(false);
   const [error, setError] = useState<string>();
   const [pending, startTransition] = useTransition();
+  const cancelRef = useRef<HTMLButtonElement>(null);
+
+  // The button that had the focus is gone once armed: keep the keyboard user on the safe choice
+  useEffect(() => {
+    if (armed) cancelRef.current?.focus();
+  }, [armed]);
 
   function handleDelete() {
     startTransition(async () => {
-      const result = await action();
+      const result = await action().catch(() => ({ ok: false as const, error: "Suppression impossible. Réessayez." }));
       if (!result.ok) {
         setError(result.error);
         setArmed(false);
@@ -46,7 +52,14 @@ export function ConfirmDeleteButton({ action, label }: ConfirmDeleteButtonProps)
       <Button type="button" variant="danger" size="sm" onClick={handleDelete} disabled={pending}>
         {pending ? "Suppression…" : "Confirmer"}
       </Button>
-      <Button type="button" variant="ghost" size="sm" onClick={() => setArmed(false)} disabled={pending}>
+      <Button
+        ref={cancelRef}
+        type="button"
+        variant="ghost"
+        size="sm"
+        onClick={() => setArmed(false)}
+        disabled={pending}
+      >
         Annuler
       </Button>
     </span>

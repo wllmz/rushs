@@ -20,7 +20,14 @@ export async function uploadRush<Result extends { ok: true } | Failure>(
     .upload(storagePath, file, { contentType: file.type, upsert: false });
   if (uploadError) return { ok: false, error: "L'envoi a échoué. Vérifiez votre connexion et réessayez." };
 
-  const result = await register(storagePath);
+  let result: Result | Failure;
+  try {
+    result = await register(storagePath);
+  } catch {
+    // Network loss or a server crash: whether the row was written or not, the cleanup below is safe,
+    // since the storage policy refuses to delete a file a version points to
+    result = { ok: false, error: "Enregistrement impossible. Réessayez." };
+  }
   if (!result.ok) {
     // No version points to the file yet, so the storage policy lets the uploader remove it;
     // if this fails too, the file is only an unreferenced leftover

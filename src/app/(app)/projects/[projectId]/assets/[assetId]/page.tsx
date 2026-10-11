@@ -65,7 +65,13 @@ export default async function AssetPage({ params, searchParams }: AssetPageProps
       <div className="overflow-hidden rounded-lg border border-foreground/10 bg-foreground/5">
         {asset.kind === "video" ? (
           // key: switching versions loads the new source instead of keeping the old one
-          <video key={version.number} src={url} controls className="max-h-[70vh] w-full" />
+          <video
+            key={version.number}
+            src={url}
+            controls
+            aria-label={`${asset.title}, version ${version.number}`}
+            className="max-h-[70vh] w-full"
+          />
         ) : (
           // eslint-disable-next-line @next/next/no-img-element -- a signed url expires: nothing to optimize or cache
           <img src={url} alt={`${asset.title}, version ${version.number}`} className="max-h-[70vh] w-full object-contain" />
@@ -86,7 +92,7 @@ export default async function AssetPage({ params, searchParams }: AssetPageProps
               >
                 <Link
                   href={`/projects/${projectId}/assets/${assetId}?v=${item.number}`}
-                  aria-current={current ? "page" : undefined}
+                  aria-current={current ? "true" : undefined}
                   className="flex min-w-0 flex-1 flex-col gap-1 px-4 py-3 hover:bg-foreground/5 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <span className="font-medium">V{item.number}</span>
