@@ -149,7 +149,10 @@ export type Database = {
           id: string
           mime_type: string
           number: number
+          reviewed_at: string | null
+          reviewed_by: string | null
           size_bytes: number
+          status: Database["public"]["Enums"]["review_status"]
           storage_path: string
           uploaded_by: string | null
         }
@@ -159,7 +162,10 @@ export type Database = {
           id?: string
           mime_type: string
           number: number
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           size_bytes: number
+          status?: Database["public"]["Enums"]["review_status"]
           storage_path: string
           uploaded_by?: string | null
         }
@@ -169,7 +175,10 @@ export type Database = {
           id?: string
           mime_type?: string
           number?: number
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           size_bytes?: number
+          status?: Database["public"]["Enums"]["review_status"]
           storage_path?: string
           uploaded_by?: string | null
         }
@@ -179,6 +188,13 @@ export type Database = {
             columns: ["asset_id"]
             isOneToOne: false
             referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "versions_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
@@ -228,10 +244,19 @@ export type Database = {
         }
         Returns: string
       }
+      set_version_status: {
+        Args: {
+          p_asset_id: string
+          p_number: number
+          p_status: Database["public"]["Enums"]["review_status"]
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       asset_kind: "video" | "image"
       project_role: "editor" | "reviewer"
+      review_status: "pending" | "changes_requested" | "approved"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -361,6 +386,7 @@ export const Constants = {
     Enums: {
       asset_kind: ["video", "image"],
       project_role: ["editor", "reviewer"],
+      review_status: ["pending", "changes_requested", "approved"],
     },
   },
 } as const

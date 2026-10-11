@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { REVIEW_STATUSES } from "./review-status";
 import { addVersionSchema, registerAssetSchema, type AddVersionInput, type RegisterAssetInput } from "./schemas";
 
 export type RegisterAssetResult = { ok: true } | { ok: false; error: string };
@@ -68,6 +69,12 @@ export async function addVersion(input: AddVersionInput): Promise<AddVersionResu
 
 const deleteAssetSchema = z.object({ projectId: z.uuid(), assetId: z.uuid() });
 
+// Hints raised by delete_asset
+const DELETE_ASSET_ERRORS: Record<string, string> = {
+  not_uploader: "Seul l'auteur du dépôt peut le supprimer.",
+  reviewed: "Ce rush a déjà été revu : il est conservé.",
+};
+
 export type DeleteAssetResult = { ok: true } | { ok: false; error: string };
 
 export async function deleteAsset(input: { projectId: string; assetId: string }): Promise<DeleteAssetResult> {
@@ -77,12 +84,7 @@ export async function deleteAsset(input: { projectId: string; assetId: string })
   const { projectId, assetId } = parsed.data;
   const supabase = await createClient();
   const { data: paths, error } = await supabase.rpc("delete_asset", { p_asset_id: assetId });
-  if (error) {
-    return {
-      ok: false,
-      error: error.hint === "not_uploader" ? "Seul l'auteur du dépôt peut le supprimer." : "Suppression impossible.",
-    };
-  }
+  if (error) return { ok: false, error: DELETE_ASSET_ERRORS[error.hint] ?? "Suppression impossible." };
 
   await removeRushFiles(supabase, paths);
 
@@ -98,6 +100,7 @@ export type DeleteVersionResult = { ok: true } | { ok: false; error: string };
 const DELETE_VERSION_ERRORS: Record<string, string> = {
   not_uploader: "Seul l'auteur de la version peut la supprimer.",
   last_version: "C'est la seule version : supprimez le rush à la place.",
+  reviewed: "Cette version a déjà été revue : elle est conservée.",
 };
 
 export async function deleteVersion(input: {
@@ -114,6 +117,44 @@ export async function deleteVersion(input: {
   if (error) return { ok: false, error: DELETE_VERSION_ERRORS[error.hint] ?? "Suppression impossible." };
 
   await removeRushFiles(supabase, [path]);
+
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath(`/projects/${projectId}/assets/${assetId}`);
+  return { ok: true };
+}
+
+const setVersionStatusSchema = z.object({
+  projectId: z.uuid(),
+  assetId: z.uuid(),
+  number: z.int().positive(),
+  status: z.enum(REVIEW_STATUSES),
+});
+
+export type SetVersionStatusResult = { ok: true } | { ok: false; error: string };
+
+// Hints raised by set_version_status
+const SET_STATUS_ERRORS: Record<string, string> = {
+  not_reviewer: "Seuls les validateurs peuvent changer le statut.",
+  version_missing: "Cette version n'existe plus.",
+};
+
+export async function setVersionStatus(input: {
+  projectId: string;
+  assetId: string;
+  number: number;
+  status: string;
+}): Promise<SetVersionStatusResult> {
+  const parsed = setVersionStatusSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Statut invalide." };
+
+  const { projectId, assetId, number, status } = parsed.data;
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_version_status", {
+    p_asset_id: assetId,
+    p_number: number,
+    p_status: status,
+  });
+  if (error) return { ok: false, error: SET_STATUS_ERRORS[error.hint] ?? "Changement de statut impossible." };
 
   revalidatePath(`/projects/${projectId}`);
   revalidatePath(`/projects/${projectId}/assets/${assetId}`);

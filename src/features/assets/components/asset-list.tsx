@@ -3,6 +3,7 @@ import { ConfirmDeleteButton } from "@/components/ui/confirm-delete-button";
 import { deleteAsset } from "../actions";
 import { formatFileSize } from "../file-rules";
 import type { AssetSummary } from "../queries";
+import { StatusBadge } from "./status-badge";
 
 const KIND_LABELS = { video: "Vidéo", image: "Image" } as const;
 const dateFormat = new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium" });
@@ -33,10 +34,11 @@ export function AssetList({ projectId, assets, currentUserId }: AssetListProps) 
           </Link>
           <span className="flex shrink-0 flex-wrap items-center gap-3 text-sm text-foreground/60">
             <span>{KIND_LABELS[asset.kind]}</span>
+            <StatusBadge status={asset.latestVersion.status} />
             <span>V{asset.latestVersion.number}</span>
             <span>{formatFileSize(asset.latestVersion.sizeBytes)}</span>
             <span>{dateFormat.format(new Date(asset.createdAt))}</span>
-            {asset.createdBy === currentUserId && (
+            {asset.createdBy === currentUserId && !asset.isReviewed && (
               <ConfirmDeleteButton
                 action={deleteAsset.bind(null, { projectId, assetId: asset.id })}
                 label={`Supprimer ${asset.title}`}
