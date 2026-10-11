@@ -8,7 +8,7 @@ vi.mock("@/lib/supabase/server", () => ({
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
-const { addVersion, deleteAsset, deleteVersion, registerAsset } = await import("./actions");
+const { addVersion, deleteAsset, deleteVersion, registerAsset, setVersionStatus } = await import("./actions");
 
 const input = {
   projectId: "6f9619ff-8b86-4d11-b42d-00c04fc964ff",
@@ -141,6 +141,13 @@ describe("deleteAsset", () => {
     log.mockRestore();
   });
 
+  it("keeps an asset that has a reviewed version", async () => {
+    rpc.mockResolvedValue({ data: null, error: { hint: "reviewed" } });
+
+    expect(await deleteAsset(ids)).toEqual({ ok: false, error: "Ce rush a déjà été revu : il est conservé." });
+    expect(remove).not.toHaveBeenCalled();
+  });
+
   it("refuses when the user did not upload the asset, and keeps the files", async () => {
     rpc.mockResolvedValue({ data: null, error: { hint: "not_uploader" } });
 
@@ -187,9 +194,54 @@ describe("deleteVersion", () => {
     expect(remove).not.toHaveBeenCalled();
   });
 
+  it("keeps a version that has been reviewed", async () => {
+    rpc.mockResolvedValue({ data: null, error: { hint: "reviewed" } });
+
+    expect(await deleteVersion(target)).toEqual({
+      ok: false,
+      error: "Cette version a déjà été revue : elle est conservée.",
+    });
+    expect(remove).not.toHaveBeenCalled();
+  });
+
   it("refuses when the user did not upload the version", async () => {
     rpc.mockResolvedValue({ data: null, error: { hint: "not_uploader" } });
 
     expect(await deleteVersion(target)).toEqual({ ok: false, error: "Seul l'auteur de la version peut la supprimer." });
+  });
+});
+
+describe("setVersionStatus", () => {
+  const change = { projectId: input.projectId, assetId: input.assetId, number: 2, status: "approved" };
+
+  it("sets the status of the version", async () => {
+    rpc.mockResolvedValue({ data: null, error: null });
+
+    expect(await setVersionStatus(change)).toEqual({ ok: true });
+    expect(rpc).toHaveBeenCalledWith("set_version_status", {
+      p_asset_id: input.assetId,
+      p_number: 2,
+      p_status: "approved",
+    });
+  });
+
+  it("rejects an unknown status without calling the database", async () => {
+    expect(await setVersionStatus({ ...change, status: "rejected" })).toEqual({ ok: false, error: "Statut invalide." });
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("explains when an editor tries to review", async () => {
+    rpc.mockResolvedValue({ data: null, error: { hint: "not_reviewer" } });
+
+    expect(await setVersionStatus(change)).toEqual({
+      ok: false,
+      error: "Seuls les validateurs peuvent changer le statut.",
+    });
+  });
+
+  it("explains when the version was deleted meanwhile", async () => {
+    rpc.mockResolvedValue({ data: null, error: { hint: "version_missing" } });
+
+    expect(await setVersionStatus(change)).toEqual({ ok: false, error: "Cette version n'existe plus." });
   });
 });

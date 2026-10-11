@@ -5,6 +5,8 @@ import { z } from "zod";
 import { ConfirmDeleteButton } from "@/components/ui/confirm-delete-button";
 import { deleteVersion } from "@/features/assets/actions";
 import { AddVersionForm } from "@/features/assets/components/add-version-form";
+import { ReviewStatusButtons } from "@/features/assets/components/review-status-buttons";
+import { StatusBadge } from "@/features/assets/components/status-badge";
 import { formatFileSize } from "@/features/assets/file-rules";
 import { getAsset, getRushUrl } from "@/features/assets/queries";
 import { pickVersion } from "@/features/assets/versions";
@@ -45,7 +47,7 @@ export default async function AssetPage({ params, searchParams }: AssetPageProps
     getCurrentUser(),
   ]);
   if (!project) notFound();
-  // The database also refuses the last version: the button only avoids offering it
+  // The database also refuses the last version and reviewed ones: the button only avoids offering them
   const canDeleteVersions = project.myRole === "editor" && asset.versions.length > 1;
 
   return (
@@ -59,6 +61,7 @@ export default async function AssetPage({ params, searchParams }: AssetPageProps
           <span className="text-sm text-foreground/60">
             {KIND_LABELS[asset.kind]} · V{version.number}
           </span>
+          <StatusBadge status={version.status} />
         </div>
       </div>
 
@@ -78,8 +81,31 @@ export default async function AssetPage({ params, searchParams }: AssetPageProps
         )}
       </div>
 
-      <section aria-labelledby="versions" className="flex flex-col gap-4">
-        <h2 id="versions" className="font-medium">
+      <section aria-labelledby="review-heading" className="flex flex-col gap-3">
+        <h2 id="review-heading" className="font-medium">
+          Validation de la V{version.number}
+        </h2>
+        {version.reviewedAt && (
+          <p className="text-sm text-foreground/60">
+            {`Statut posé par ${version.reviewerName ?? "un compte inconnu"} le ${dateFormat.format(new Date(version.reviewedAt))}.`}
+          </p>
+        )}
+        {project.myRole === "reviewer" ? (
+          <ReviewStatusButtons
+            // key: a confirmation shown for one version must not stay on the next one
+            key={version.number}
+            projectId={projectId}
+            assetId={assetId}
+            number={version.number}
+            status={version.status}
+          />
+        ) : (
+          !version.reviewedAt && <p className="text-sm text-foreground/60">En attente d&apos;un validateur.</p>
+        )}
+      </section>
+
+      <section aria-labelledby="versions-heading" className="flex flex-col gap-4">
+        <h2 id="versions-heading" className="font-medium">
           Versions
         </h2>
         <ul className="divide-y divide-foreground/10 rounded-lg border border-foreground/10">
@@ -95,14 +121,17 @@ export default async function AssetPage({ params, searchParams }: AssetPageProps
                   aria-current={current ? "true" : undefined}
                   className="flex min-w-0 flex-1 flex-col gap-1 px-4 py-3 hover:bg-foreground/5 sm:flex-row sm:items-center sm:justify-between"
                 >
-                  <span className="font-medium">V{item.number}</span>
+                  <span className="flex items-center gap-2">
+                    <span className="font-medium">V{item.number}</span>
+                    <StatusBadge status={item.status} />
+                  </span>
                   <span className="flex flex-wrap gap-3 text-sm text-foreground/60">
                     <span>{item.uploaderName ?? "Auteur inconnu"}</span>
                     <span>{formatFileSize(item.sizeBytes)}</span>
                     <span>{dateFormat.format(new Date(item.createdAt))}</span>
                   </span>
                 </Link>
-                {canDeleteVersions && item.uploadedBy === user.id && (
+                {canDeleteVersions && item.uploadedBy === user.id && item.reviewedAt === null && (
                   <ConfirmDeleteButton
                     action={deleteVersion.bind(null, { projectId, assetId, number: item.number })}
                     label={`Supprimer la version ${item.number}`}

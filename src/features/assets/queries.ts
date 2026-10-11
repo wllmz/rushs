@@ -2,6 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import type { AssetKind } from "./file-rules";
+import type { ReviewStatus } from "./review-status";
 import { pickVersion } from "./versions";
 
 export type AssetSummary = {
@@ -11,7 +12,9 @@ export type AssetSummary = {
   // null once the uploader's account is deleted
   createdBy: string | null;
   createdAt: string;
-  latestVersion: { number: number; sizeBytes: number };
+  latestVersion: { number: number; sizeBytes: number; status: ReviewStatus };
+  // Reviewed once, even if set back to pending: part of the review history, it can no longer be deleted
+  isReviewed: boolean;
 };
 
 // RLS returns nothing for a project the user is not a member of
@@ -20,7 +23,7 @@ export async function listAssets(projectId: string): Promise<AssetSummary[]> {
 
   const { data, error } = await supabase
     .from("assets")
-    .select("id, title, kind, created_by, created_at, versions (number, size_bytes)")
+    .select("id, title, kind, created_by, created_at, versions (number, size_bytes, status, reviewed_at)")
     .eq("project_id", projectId)
     .order("created_at", { ascending: false });
   if (error) throw new Error(`Could not list assets: ${error.message}`);
@@ -36,7 +39,8 @@ export async function listAssets(projectId: string): Promise<AssetSummary[]> {
         kind: asset.kind,
         createdBy: asset.created_by,
         createdAt: asset.created_at,
-        latestVersion: { number: latest.number, sizeBytes: latest.size_bytes },
+        latestVersion: { number: latest.number, sizeBytes: latest.size_bytes, status: latest.status },
+        isReviewed: asset.versions.some((version) => version.reviewed_at !== null),
       },
     ];
   });
@@ -52,6 +56,10 @@ export type AssetVersion = {
   uploadedBy: string | null;
   // null when the account is deleted or no longer shares a project with the viewer
   uploaderName: string | null;
+  status: ReviewStatus;
+  // Who set the status and when; null while nobody has reviewed the version
+  reviewerName: string | null;
+  reviewedAt: string | null;
 };
 
 export type AssetDetail = {
@@ -72,7 +80,7 @@ export const getAsset = cache(async (assetId: string): Promise<AssetDetail | nul
   const { data, error } = await supabase
     .from("assets")
     .select(
-      "id, project_id, title, kind, created_by, versions (number, storage_path, mime_type, size_bytes, created_at, uploaded_by, profiles (full_name))",
+      "id, project_id, title, kind, created_by, versions (number, storage_path, mime_type, size_bytes, created_at, uploaded_by, status, reviewed_at, uploader:profiles!versions_uploaded_by_fkey (full_name), reviewer:profiles!versions_reviewed_by_fkey (full_name))",
     )
     .eq("id", assetId)
     .maybeSingle();
@@ -93,7 +101,10 @@ export const getAsset = cache(async (assetId: string): Promise<AssetDetail | nul
         sizeBytes: version.size_bytes,
         createdAt: version.created_at,
         uploadedBy: version.uploaded_by,
-        uploaderName: version.profiles?.full_name ?? null,
+        uploaderName: version.uploader?.full_name ?? null,
+        status: version.status,
+        reviewerName: version.reviewer?.full_name ?? null,
+        reviewedAt: version.reviewed_at,
       }))
       .sort((a, b) => b.number - a.number),
   };
