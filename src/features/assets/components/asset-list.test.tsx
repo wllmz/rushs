@@ -16,7 +16,7 @@ function asset(overrides: Partial<AssetSummary>): AssetSummary {
     createdBy: userId,
     createdAt: "2026-10-11T10:00:00Z",
     latestVersion: { number: 1, sizeBytes: 1024 * 1024, status: "pending" },
-    isReviewed: false,
+    hasReviewHistory: false,
     ...overrides,
   };
 }
@@ -27,7 +27,7 @@ describe("AssetList", () => {
       <AssetList
         projectId="p"
         currentUserId={userId}
-        assets={[asset({ latestVersion: { number: 2, sizeBytes: 1024, status: "approved" }, isReviewed: true })]}
+        assets={[asset({ latestVersion: { number: 2, sizeBytes: 1024, status: "approved" }, hasReviewHistory: true })]}
       />,
     );
 
@@ -41,7 +41,7 @@ describe("AssetList", () => {
         currentUserId={userId}
         assets={[
           asset({ id: "a1", title: "Brouillon" }),
-          asset({ id: "a2", title: "Revu", isReviewed: true }),
+          asset({ id: "a2", title: "Revu", hasReviewHistory: true }),
           asset({ id: "a3", title: "Autre", createdBy: "someone-else" }),
         ]}
       />,

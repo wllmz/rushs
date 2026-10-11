@@ -72,7 +72,7 @@ const deleteAssetSchema = z.object({ projectId: z.uuid(), assetId: z.uuid() });
 // Hints raised by delete_asset
 const DELETE_ASSET_ERRORS: Record<string, string> = {
   not_uploader: "Seul l'auteur du dépôt peut le supprimer.",
-  reviewed: "Ce rush a déjà été revu : il est conservé.",
+  reviewed: "Ce rush a déjà été revu ou commenté : il est conservé.",
 };
 
 export type DeleteAssetResult = { ok: true } | { ok: false; error: string };
@@ -100,7 +100,7 @@ export type DeleteVersionResult = { ok: true } | { ok: false; error: string };
 const DELETE_VERSION_ERRORS: Record<string, string> = {
   not_uploader: "Seul l'auteur de la version peut la supprimer.",
   last_version: "C'est la seule version : supprimez le rush à la place.",
-  reviewed: "Cette version a déjà été revue : elle est conservée.",
+  reviewed: "Cette version a déjà été revue ou commentée : elle est conservée.",
 };
 
 export async function deleteVersion(input: {

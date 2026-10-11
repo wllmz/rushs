@@ -3,10 +3,10 @@ import Link from "next/link";
 import { CreateProjectForm } from "@/features/projects/components/create-project-form";
 import { RoleBadge } from "@/features/projects/components/role-badge";
 import { listMyProjects } from "@/features/projects/queries";
+import { formatDate } from "@/lib/format-date";
 
 export const metadata: Metadata = { title: "Projets · Rushs" };
 
-const dateFormat = new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium" });
 
 export default async function ProjectsPage() {
   const projects = await listMyProjects();
@@ -38,7 +38,7 @@ export default async function ProjectsPage() {
                 <span className="truncate font-medium">{project.name}</span>
                 <span className="flex items-center justify-between gap-2 text-sm text-foreground/60">
                   <RoleBadge role={project.myRole} />
-                  {dateFormat.format(new Date(project.createdAt))}
+                  {formatDate(project.createdAt)}
                 </span>
               </Link>
             </li>
