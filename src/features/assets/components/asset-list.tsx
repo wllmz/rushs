@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { ConfirmDeleteButton } from "@/components/ui/confirm-delete-button";
+import { formatDate } from "@/lib/format-date";
 import { deleteAsset } from "../actions";
 import { formatFileSize } from "../file-rules";
 import type { AssetSummary } from "../queries";
 import { StatusBadge } from "./status-badge";
-import { formatDate } from "@/lib/format-date";
 
 const KIND_LABELS = { video: "Vidéo", image: "Image" } as const;
 

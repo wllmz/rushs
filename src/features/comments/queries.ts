@@ -18,7 +18,9 @@ export async function listComments(versionId: string): Promise<Comment[]> {
     .from("comments")
     .select("id, body, timecode, created_at, author:profiles (full_name)")
     .eq("version_id", versionId)
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: true })
+    // Two comments sent in the same instant keep a stable order
+    .order("id", { ascending: true });
   if (error) throw new Error(`Could not list comments: ${error.message}`);
 
   return data.map((comment) => ({

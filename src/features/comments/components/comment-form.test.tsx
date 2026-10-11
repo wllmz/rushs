@@ -37,13 +37,13 @@ describe("CommentForm", () => {
 
   it("sends no timecode once unpinned, nor on an image", async () => {
     const { unmount } = render(<CommentForm {...ids} isVideo />);
-    fireEvent.click(screen.getByLabelText("Lier au moment où la vidéo est arrêtée"));
+    fireEvent.click(screen.getByLabelText("Lier au moment actuel de la vidéo"));
     write("Global");
     await waitFor(() => expect(addComment).toHaveBeenLastCalledWith({ ...ids, body: "Global", timecode: null }));
     unmount();
 
     render(<CommentForm {...ids} isVideo={false} />);
-    expect(screen.queryByLabelText("Lier au moment où la vidéo est arrêtée")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Lier au moment actuel de la vidéo")).not.toBeInTheDocument();
     write("Recadrer");
     await waitFor(() => expect(addComment).toHaveBeenLastCalledWith({ ...ids, body: "Recadrer", timecode: null }));
   });
@@ -55,5 +55,31 @@ describe("CommentForm", () => {
 
     expect(screen.getByRole("alert")).toHaveTextContent("Écrivez un commentaire");
     expect(addComment).not.toHaveBeenCalled();
+  });
+
+  it("does not pin a video that was never started", async () => {
+    currentTime.mockReturnValue(0);
+    render(<CommentForm {...ids} isVideo />);
+
+    write("Le titre");
+
+    await waitFor(() => expect(addComment).toHaveBeenCalledWith({ ...ids, body: "Le titre", timecode: null }));
+  });
+
+  it("clears the draft once sent, and keeps it with the reason when refused", async () => {
+    render(<CommentForm {...ids} isVideo={false} />);
+    const field = screen.getByLabelText("Votre commentaire");
+
+    write("Envoyé");
+    await waitFor(() => expect(field).toHaveValue(""));
+
+    addComment.mockResolvedValue({ ok: false, error: "Vous ne pouvez pas commenter ce rush." });
+    write("Refusé");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Vous ne pouvez pas commenter ce rush.");
+    expect(field).toHaveValue("Refusé");
+
+    addComment.mockRejectedValue(new Error("Failed to fetch"));
+    write("Hors ligne");
+    expect(await screen.findByText("Envoi du commentaire impossible. Réessayez.")).toBeInTheDocument();
   });
 });

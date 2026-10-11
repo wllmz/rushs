@@ -1,10 +1,9 @@
 "use client";
 
 import { usePlayer } from "@/features/assets/components/player";
+import { formatDate } from "@/lib/format-date";
 import type { Comment } from "../queries";
 import { formatTimecode } from "../timecode";
-import { formatDate } from "@/lib/format-date";
-
 
 export function CommentList({ comments }: { comments: Comment[] }) {
   const player = usePlayer();

@@ -20,7 +20,8 @@ export async function addComment(input: AddCommentInput): Promise<AddCommentResu
   // author_id defaults to the signed-in user in the database
   const { error } = await supabase.from("comments").insert({ version_id: versionId, body, timecode });
   if (error) {
-    // 42501: refused by RLS. 23503: the version was deleted meanwhile.
+    // 42501: refused by RLS, which also covers a version already deleted (the policy finds no project).
+    // 23503: the version was deleted while this comment was being written.
     if (error.code === "42501") return { ok: false, error: "Vous ne pouvez pas commenter ce rush." };
     if (error.code === "23503") return { ok: false, error: "Cette version n'existe plus." };
     return { ok: false, error: "Envoi du commentaire impossible. Réessayez." };

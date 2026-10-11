@@ -30,8 +30,10 @@ export function CommentForm({ projectId, assetId, versionId, isVideo }: CommentF
       setError(body.error.issues[0]?.message);
       return;
     }
-    // Read when sending, so the comment points where the video is paused now
-    const timecode = isVideo && formData.get("pin") === "on" ? player.currentTime() : null;
+    // Read when sending, so the comment points where the video stands now.
+    // At 0 the video was never started or moved: a 00:00 pin would only be noise.
+    const time = isVideo && formData.get("pin") === "on" ? player.currentTime() : null;
+    const timecode = time ? time : null;
 
     setError(undefined);
     startTransition(async () => {
@@ -64,7 +66,7 @@ export function CommentForm({ projectId, assetId, versionId, isVideo }: CommentF
       {isVideo && (
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" name="pin" defaultChecked />
-          Lier au moment où la vidéo est arrêtée
+          Lier au moment actuel de la vidéo
         </label>
       )}
       <div className="flex flex-wrap items-center gap-3">
