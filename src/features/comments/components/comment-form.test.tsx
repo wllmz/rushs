@@ -82,4 +82,17 @@ describe("CommentForm", () => {
     write("Hors ligne");
     expect(await screen.findByText("Envoi du commentaire impossible. Réessayez.")).toBeInTheDocument();
   });
+
+  it("keeps the pin unchecked for the next comments once the user unchecked it", async () => {
+    render(<CommentForm {...ids} isVideo />);
+    const pin = screen.getByLabelText("Lier au moment actuel de la vidéo");
+    fireEvent.click(pin);
+
+    write("Premier");
+    await waitFor(() => expect(screen.getByLabelText("Votre commentaire")).toHaveValue(""));
+    expect(pin).not.toBeChecked();
+
+    write("Deuxième");
+    await waitFor(() => expect(addComment).toHaveBeenLastCalledWith({ ...ids, body: "Deuxième", timecode: null }));
+  });
 });

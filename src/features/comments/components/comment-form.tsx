@@ -15,7 +15,7 @@ type CommentFormProps = {
 };
 
 export function CommentForm({ projectId, assetId, versionId, isVideo }: CommentFormProps) {
-  const formRef = useRef<HTMLFormElement>(null);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
   const player = usePlayer();
   const [error, setError] = useState<string>();
   const [pending, startTransition] = useTransition();
@@ -41,18 +41,23 @@ export function CommentForm({ projectId, assetId, versionId, isVideo }: CommentF
         ok: false as const,
         error: "Envoi du commentaire impossible. Réessayez.",
       }));
-      if (result.ok) formRef.current?.reset();
-      else setError(result.error);
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      // Only the text is cleared: a form reset would check the pin again behind the user's back
+      if (bodyRef.current) bodyRef.current.value = "";
     });
   }
 
   return (
-    <form ref={formRef} onSubmit={handleSubmit} className="flex flex-col gap-3" noValidate>
+    <form onSubmit={handleSubmit} className="flex flex-col gap-3" noValidate>
       <div className="flex flex-col gap-1.5">
         <label htmlFor={bodyId} className="text-sm font-medium">
           Votre commentaire
         </label>
         <textarea
+          ref={bodyRef}
           id={bodyId}
           name="body"
           rows={3}
