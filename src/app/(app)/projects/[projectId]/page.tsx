@@ -2,6 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { z } from "zod";
+import { AssetList } from "@/features/assets/components/asset-list";
+import { UploadAssetForm } from "@/features/assets/components/upload-asset-form";
+import { listAssets } from "@/features/assets/queries";
+import { getCurrentUser } from "@/features/auth/queries";
 import { AddMemberForm } from "@/features/projects/components/add-member-form";
 import { RoleBadge } from "@/features/projects/components/role-badge";
 import { getProject } from "@/features/projects/queries";
@@ -21,6 +25,7 @@ export async function generateMetadata({ params }: PageProps<"/projects/[project
 
 export default async function ProjectPage({ params }: PageProps<"/projects/[projectId]">) {
   const project = await loadProject((await params).projectId);
+  const [assets, user] = await Promise.all([listAssets(project.id), getCurrentUser()]);
 
   return (
     <div className="flex flex-col gap-8">
@@ -34,11 +39,16 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[proj
         </div>
       </div>
 
-      <section aria-labelledby="rushes" className="rounded-lg border border-dashed border-foreground/15 p-6">
+      <section aria-labelledby="rushes" className="flex flex-col gap-4">
         <h2 id="rushes" className="font-medium">
           Rushs
         </h2>
-        <p className="mt-1 text-sm text-foreground/60">Le dépôt des fichiers arrive bientôt.</p>
+        {project.myRole === "editor" && (
+          <div className="rounded-lg border border-foreground/10 p-4">
+            <UploadAssetForm projectId={project.id} />
+          </div>
+        )}
+        <AssetList projectId={project.id} assets={assets} currentUserId={user.id} />
       </section>
 
       <section aria-labelledby="members" className="flex flex-col gap-4">

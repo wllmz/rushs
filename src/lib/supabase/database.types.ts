@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      assets: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          kind: Database["public"]["Enums"]["asset_kind"]
+          project_id: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          kind: Database["public"]["Enums"]["asset_kind"]
+          project_id: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          kind?: Database["public"]["Enums"]["asset_kind"]
+          project_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assets_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assets_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -97,6 +139,54 @@ export type Database = {
           },
         ]
       }
+      versions: {
+        Row: {
+          asset_id: string
+          created_at: string
+          id: string
+          mime_type: string
+          number: number
+          size_bytes: number
+          storage_path: string
+          uploaded_by: string
+        }
+        Insert: {
+          asset_id: string
+          created_at?: string
+          id?: string
+          mime_type: string
+          number: number
+          size_bytes: number
+          storage_path: string
+          uploaded_by: string
+        }
+        Update: {
+          asset_id?: string
+          created_at?: string
+          id?: string
+          mime_type?: string
+          number?: number
+          size_bytes?: number
+          storage_path?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "versions_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "versions_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -117,8 +207,19 @@ export type Database = {
         }
         Returns: string
       }
+      delete_asset: { Args: { p_asset_id: string }; Returns: string[] }
+      register_asset: {
+        Args: {
+          p_asset_id: string
+          p_project_id: string
+          p_storage_path: string
+          p_title: string
+        }
+        Returns: string
+      }
     }
     Enums: {
+      asset_kind: "video" | "image"
       project_role: "editor" | "reviewer"
     }
     CompositeTypes: {
@@ -247,6 +348,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      asset_kind: ["video", "image"],
       project_role: ["editor", "reviewer"],
     },
   },
